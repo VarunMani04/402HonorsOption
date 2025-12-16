@@ -1,4 +1,4 @@
-# Lab 5: Neural Network Architectures for MDPs and Image Classification
+# DS402 Honors Option: Neural Network Architectures for MDPs and Image Classification
 
 This project implements and compares three distinct neural network architectures:
 1. **CNN (Convolutional Neural Network)** - For image classification on CIFAR-10
