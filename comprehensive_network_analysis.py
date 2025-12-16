@@ -8,9 +8,8 @@ Comprehensive Neural Network Analysis for Lab 5
 Metrics calculated:
 1. Equivalence classes between parking states
 2. Qualitative analysis
-3. Entropy
-4. Learning Curves
-5. Uniformness of action distribution
+3. Learning Curves
+4. Uniformness of action distribution
 """
 
 import numpy as np
@@ -22,7 +21,6 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from random import seed
-from scipy.stats import entropy as scipy_entropy
 from scipy.stats import chi2_contingency
 from scipy.cluster.hierarchy import fcluster, linkage
 from sklearn.cluster import KMeans
@@ -30,7 +28,6 @@ from sklearn.decomposition import PCA
 from collections import defaultdict
 import json
 import pickle
-from datetime import datetime
 
 # Lab 5 imports
 from ParkingLotFactory import createParkingMDP
@@ -64,7 +61,6 @@ class ComprehensiveNetworkAnalyzer:
             'methodology': {},
             'equivalence_classes': {},
             'qualitative_analysis': {},
-            'entropy': {},
             'learning_curves': {},
             'action_distribution': {}
         }
@@ -236,9 +232,6 @@ class ComprehensiveNetworkAnalyzer:
         # Analyze action distribution
         action_distribution = self._calculate_action_distribution(agent, mdp)
         
-        # Calculate policy entropy
-        policy_entropy = self._calculate_policy_entropy(agent, mdp)
-        
         # Equivalence classes
         equiv_classes = self._analyze_equivalence_classes(agent, mdp, "LSTM")
         
@@ -248,7 +241,6 @@ class ComprehensiveNetworkAnalyzer:
             'mdp': mdp,
             'start': start,
             'action_distribution': action_distribution,
-            'policy_entropy': policy_entropy,
             'equivalence_classes': equiv_classes,
             'final_reward': np.mean(rewards[-10:]),
             'num_epochs': num_epochs
@@ -282,9 +274,6 @@ class ComprehensiveNetworkAnalyzer:
         # Analyze action distribution
         action_distribution = self._calculate_action_distribution(agent, mdp)
         
-        # Calculate policy entropy
-        policy_entropy = self._calculate_policy_entropy(agent, mdp)
-        
         # Equivalence classes
         equiv_classes = self._analyze_equivalence_classes(agent, mdp, "Default")
         
@@ -294,7 +283,6 @@ class ComprehensiveNetworkAnalyzer:
             'mdp': mdp,
             'start': start,
             'action_distribution': action_distribution,
-            'policy_entropy': policy_entropy,
             'equivalence_classes': equiv_classes,
             'final_reward': np.mean(rewards[-10:]),
             'num_epochs': num_epochs
@@ -332,30 +320,6 @@ class ComprehensiveNetworkAnalyzer:
             'chi_square_stat': chi_square_stat,
             'p_value': p_value,
             'is_uniform': p_value > 0.05 if p_value else False
-        }
-    
-    def _calculate_policy_entropy(self, agent, mdp, temperature=1.0):
-        """Calculate policy entropy for each state"""
-        entropies = []
-        
-        for state in range(mdp.numStates):
-            q_values = agent.predict_qvalues(state)
-            
-            # Convert to probabilities using softmax
-            exp_q = np.exp(q_values / temperature - np.max(q_values / temperature))
-            probs = exp_q / np.sum(exp_q)
-            
-            # Calculate entropy
-            state_entropy = scipy_entropy(probs)
-            entropies.append(state_entropy)
-        
-        return {
-            'state_entropies': np.array(entropies),
-            'mean_entropy': np.mean(entropies),
-            'std_entropy': np.std(entropies),
-            'min_entropy': np.min(entropies),
-            'max_entropy': np.max(entropies),
-            'median_entropy': np.median(entropies)
         }
     
     def _analyze_equivalence_classes(self, agent, mdp, network_name):
@@ -437,10 +401,7 @@ class ComprehensiveNetworkAnalyzer:
         # 2. Equivalence Classes
         self._plot_equivalence_classes()
         
-        # 3. Entropy Analysis
-        self._plot_entropy_analysis()
-        
-        # 4. Action Distribution Uniformity
+        # 3. Action Distribution Uniformity
         self._plot_action_distribution()
         
         # 5. Qualitative Analysis
@@ -631,82 +592,6 @@ class ComprehensiveNetworkAnalyzer:
         
         plt.tight_layout()
         plt.savefig('equivalence_classes_analysis.png', dpi=300, bbox_inches='tight')
-        plt.close()
-    
-    def _plot_entropy_analysis(self):
-        """Generate entropy analysis visualizations"""
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-        fig.suptitle('Policy Entropy Analysis', fontsize=16, fontweight='bold')
-        
-        plot_idx = 0
-        for name, label, color in [('LSTM_Parking', 'LSTM', 'green'), 
-                                    ('Default_Parking', 'Default', 'red')]:
-            if name in self.results:
-                ent_data = self.results[name]['policy_entropy']
-                entropies = ent_data['state_entropies']
-                
-                # Histogram
-                ax = axes[plot_idx // 2, plot_idx % 2]
-                n, bins, patches = ax.hist(entropies, bins=20, color=color, alpha=0.7, 
-                                          edgecolor='black', linewidth=1)
-                ax.axvline(ent_data['mean_entropy'], color='red', linestyle='--', 
-                          linewidth=2, label=f"Mean: {ent_data['mean_entropy']:.3f}")
-                ax.axvline(ent_data['median_entropy'], color='blue', linestyle='--', 
-                          linewidth=2, label=f"Median: {ent_data['median_entropy']:.3f}")
-                ax.set_xlabel('Policy Entropy', fontsize=12)
-                ax.set_ylabel('Frequency', fontsize=12)
-                ax.set_title(f'{label} Network - Entropy Distribution', 
-                           fontsize=14, fontweight='bold')
-                ax.legend()
-                ax.grid(True, alpha=0.3, axis='y')
-                
-                plot_idx += 1
-                
-                # Box Plot Comparison
-                if plot_idx == 2:
-                    ax = axes[plot_idx // 2, plot_idx % 2]
-                    entropies_list = []
-                    labels_list = []
-                    colors_list = []
-                    
-                    for n2, l2, c2 in [('LSTM_Parking', 'LSTM', 'green'), 
-                                       ('Default_Parking', 'Default', 'red')]:
-                        if n2 in self.results:
-                            entropies_list.append(self.results[n2]['policy_entropy']['state_entropies'])
-                            labels_list.append(l2)
-                            colors_list.append(c2)
-                    
-                    bp = ax.boxplot(entropies_list, labels=labels_list, patch_artist=True)
-                    for patch, color in zip(bp['boxes'], colors_list):
-                        patch.set_facecolor(color)
-                        patch.set_alpha(0.7)
-                    
-                    ax.set_ylabel('Policy Entropy', fontsize=12)
-                    ax.set_title('Entropy Comparison Across Networks', 
-                               fontsize=14, fontweight='bold')
-                    ax.grid(True, alpha=0.3, axis='y')
-                    
-                    plot_idx += 1
-                
-                # State-by-State Entropy
-                if plot_idx <= 3:
-                    ax = axes[plot_idx // 2, plot_idx % 2]
-                    states = range(len(entropies))
-                    ax.plot(states, entropies, color=color, linewidth=1.5, alpha=0.7)
-                    ax.fill_between(states, entropies, alpha=0.3, color=color)
-                    ax.axhline(ent_data['mean_entropy'], color='red', linestyle='--', 
-                              linewidth=2, label=f"Mean: {ent_data['mean_entropy']:.3f}")
-                    ax.set_xlabel('State Index', fontsize=12)
-                    ax.set_ylabel('Policy Entropy', fontsize=12)
-                    ax.set_title(f'{label} Network - Entropy by State', 
-                               fontsize=14, fontweight='bold')
-                    ax.legend()
-                    ax.grid(True, alpha=0.3)
-                    
-                    plot_idx += 1
-        
-        plt.tight_layout()
-        plt.savefig('entropy_analysis.png', dpi=300, bbox_inches='tight')
         plt.close()
     
     def _plot_action_distribution(self):
@@ -957,33 +842,7 @@ class ComprehensiveNetworkAnalyzer:
             ax1_twin.legend(loc='upper right')
         ax1.grid(True, alpha=0.3)
         
-        # 2. Entropy Comparison
-        ax2 = fig.add_subplot(gs[0, 2:])
-        entropies_to_plot = []
-        labels = []
-        colors = []
-        
-        if 'LSTM_Parking' in self.results:
-            lstm_entropy = self.results['LSTM_Parking']['policy_entropy']['state_entropies']
-            entropies_to_plot.append(lstm_entropy)
-            labels.append('LSTM')
-            colors.append('green')
-        
-        if 'Default_Parking' in self.results:
-            default_entropy = self.results['Default_Parking']['policy_entropy']['state_entropies']
-            entropies_to_plot.append(default_entropy)
-            labels.append('Default')
-            colors.append('red')
-        
-        if entropies_to_plot:
-            ax2.hist(entropies_to_plot, bins=15, alpha=0.6, label=labels, color=colors[:len(labels)], density=True)
-            ax2.set_xlabel('Policy Entropy')
-            ax2.set_ylabel('Density')
-            ax2.set_title('Policy Entropy Distribution', fontsize=14, fontweight='bold')
-            ax2.legend()
-            ax2.grid(True, alpha=0.3)
-        
-        # 3-4. Equivalence Classes (LSTM and Default)
+        # 2-3. Equivalence Classes (LSTM and Default)
         plot_idx = 1
         for name, label in [('LSTM_Parking', 'LSTM'), ('Default_Parking', 'Default')]:
             if name in self.results:
@@ -1003,7 +862,7 @@ class ComprehensiveNetworkAnalyzer:
                     ax.grid(True, alpha=0.3)
                     plot_idx += 1
         
-        # 5-6. Action Distribution Uniformity
+        # 4-5. Action Distribution Uniformity
         plot_idx = 0
         for name, label, color in [('LSTM_Parking', 'LSTM', 'green'), 
                                     ('Default_Parking', 'Default', 'red')]:
@@ -1031,7 +890,7 @@ class ComprehensiveNetworkAnalyzer:
                 
                 plot_idx += 1
         
-        # 7. CNN Class Distribution
+        # 6. CNN Class Distribution
         if 'CNN_CIFAR10' in self.results:
             ax7 = fig.add_subplot(gs[2, 2:])
             cnn_data = self.results['CNN_CIFAR10']
@@ -1053,7 +912,7 @@ class ComprehensiveNetworkAnalyzer:
                           linewidth=2, label=f'Uniform: {expected:.1f}')
                 ax7.legend()
         
-        # 8-9. Final Performance Summary
+        # 7-8. Final Performance Summary
         ax8 = fig.add_subplot(gs[3, :2])
         networks = []
         metrics = []
@@ -1087,32 +946,6 @@ class ComprehensiveNetworkAnalyzer:
                         f'{metric:.2f}',
                         ha='center', va='bottom', fontweight='bold')
         
-        # 10. Entropy Statistics Table
-        ax9 = fig.add_subplot(gs[3, 2:])
-        ax9.axis('off')
-        
-        table_data = []
-        headers = ['Network', 'Mean Entropy', 'Std Entropy', 'Min', 'Max']
-        
-        for name, label in [('LSTM_Parking', 'LSTM'), ('Default_Parking', 'Default')]:
-            if name in self.results:
-                ent_data = self.results[name]['policy_entropy']
-                table_data.append([
-                    label,
-                    f"{ent_data['mean_entropy']:.3f}",
-                    f"{ent_data['std_entropy']:.3f}",
-                    f"{ent_data['min_entropy']:.3f}",
-                    f"{ent_data['max_entropy']:.3f}"
-                ])
-        
-        if table_data:
-            table = ax9.table(cellText=table_data, colLabels=headers,
-                            cellLoc='center', loc='center')
-            table.auto_set_font_size(False)
-            table.set_fontsize(10)
-            table.scale(1.2, 1.5)
-            ax9.set_title('Policy Entropy Statistics', fontsize=12, fontweight='bold', pad=20)
-        
         plt.suptitle('Comprehensive Neural Network Analysis Report', 
                     fontsize=16, fontweight='bold', y=0.995)
         
@@ -1120,237 +953,6 @@ class ComprehensiveNetworkAnalyzer:
         plt.close()
         
         return fig
-    
-    def generate_quantitative_report(self):
-        """Generate comprehensive quantitative report"""
-        print("\nGenerating quantitative report...")
-        
-        report_lines = []
-        report_lines.append("\n" + "="*80)
-        report_lines.append("NEURAL NETWORK ARCHITECTURES: QUANTITATIVE ANALYSIS REPORT")
-        report_lines.append("="*80)
-        report_lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        report_lines.append("")
-        
-        # 1. Methodology Section
-        report_lines.append("="*80)
-        report_lines.append("1. METHODOLOGY")
-        report_lines.append("="*80)
-        report_lines.append("")
-        report_lines.append("This report analyzes three distinct neural network architectures:")
-        report_lines.append("")
-        
-        # CNN Methodology
-        if 'CNN_CIFAR10' in self.results:
-            cnn_data = self.results['CNN_CIFAR10']
-            report_lines.append("1.1 CNN (Convolutional Neural Network)")
-            report_lines.append("-" * 40)
-            report_lines.append(f"   • Architecture: Multi-layer CNN with conv channels [32, 64, 128]")
-            report_lines.append(f"   • Dataset: CIFAR-10 (32x32 RGB images, 10 classes)")
-            report_lines.append(f"   • Training epochs: {cnn_data['num_epochs']}")
-            report_lines.append(f"   • Final test accuracy: {cnn_data['final_test_acc']:.2f}%")
-            report_lines.append(f"   • Purpose: Image classification task")
-            report_lines.append("")
-        
-        # LSTM Methodology
-        if 'LSTM_Parking' in self.results:
-            lstm_data = self.results['LSTM_Parking']
-            report_lines.append("1.2 LSTM (Long Short-Term Memory)")
-            report_lines.append("-" * 40)
-            report_lines.append(f"   • Architecture: LSTM with hidden_size=64, num_layers=2")
-            report_lines.append(f"   • Dataset: Parking MDP ({lstm_data['mdp'].numStates} states, {lstm_data['mdp'].numActions} actions)")
-            report_lines.append(f"   • Training epochs: {lstm_data['num_epochs']}")
-            report_lines.append(f"   • Final average reward: {lstm_data['final_reward']:.2f}")
-            report_lines.append(f"   • Purpose: Sequential decision-making in reinforcement learning")
-            report_lines.append("")
-        
-        # Default Methodology
-        if 'Default_Parking' in self.results:
-            default_data = self.results['Default_Parking']
-            report_lines.append("1.3 Default/Standard Neural Network")
-            report_lines.append("-" * 40)
-            report_lines.append(f"   • Architecture: Fully connected layers [128, 64]")
-            report_lines.append(f"   • Dataset: Parking MDP ({default_data['mdp'].numStates} states, {default_data['mdp'].numActions} actions)")
-            report_lines.append(f"   • Training epochs: {default_data['num_epochs']}")
-            report_lines.append(f"   • Final average reward: {default_data['final_reward']:.2f}")
-            report_lines.append(f"   • Purpose: Baseline reinforcement learning agent")
-            report_lines.append("")
-        
-        # 2. Equivalence Classes
-        report_lines.append("="*80)
-        report_lines.append("2. EQUIVALENCE CLASSES BETWEEN PARKING STATES")
-        report_lines.append("="*80)
-        report_lines.append("")
-        
-        for name, label in [('LSTM_Parking', 'LSTM'), ('Default_Parking', 'Default')]:
-            if name in self.results:
-                equiv_data = self.results[name]['equivalence_classes']
-                report_lines.append(f"2.{1 if name == 'LSTM_Parking' else 2} {label} Network")
-                report_lines.append("-" * 40)
-                report_lines.append(f"   • Number of equivalence classes discovered: {equiv_data['num_clusters']}")
-                report_lines.append(f"   • Clustering method: K-means on Q-value vectors")
-                report_lines.append("")
-                
-                # Cluster details
-                for cluster_id, states in equiv_data['cluster_groups'].items():
-                    report_lines.append(f"   Cluster {cluster_id}: {len(states)} states")
-                    # Show sample states from cluster
-                    sample_states = [s['state'] for s in states[:5]]
-                    report_lines.append(f"     Sample states: {sample_states}")
-                report_lines.append("")
-        
-        # 3. Qualitative Analysis
-        report_lines.append("="*80)
-        report_lines.append("3. QUALITATIVE ANALYSIS")
-        report_lines.append("="*80)
-        report_lines.append("")
-        
-        for name, label in [('LSTM_Parking', 'LSTM'), ('Default_Parking', 'Default')]:
-            if name in self.results:
-                data = self.results[name]
-                equiv_data = data['equivalence_classes']
-                report_lines.append(f"3.{1 if name == 'LSTM_Parking' else 2} {label} Network")
-                report_lines.append("-" * 40)
-                
-                # Q-value statistics
-                q_variances = [s['q_variance'] for s in equiv_data['state_info']]
-                q_spreads = [s['q_spread'] for s in equiv_data['state_info']]
-                
-                report_lines.append(f"   Q-Value Analysis:")
-                report_lines.append(f"   • Mean Q-value variance: {np.mean(q_variances):.4f}")
-                report_lines.append(f"   • Mean Q-value spread: {np.mean(q_spreads):.4f}")
-                report_lines.append(f"   • Policy determinism: High spread indicates clearer preferences")
-                
-                # Action diversity
-                action_dist = data['action_distribution']
-                report_lines.append(f"   Action Diversity:")
-                report_lines.append(f"   • Actions utilized: {len(action_dist['action_counts'])}/{data['mdp'].numActions}")
-                report_lines.append(f"   • Most common action: {max(action_dist['action_counts'].items(), key=lambda x: x[1])[0]}")
-                report_lines.append("")
-        
-        # 4. Entropy
-        report_lines.append("="*80)
-        report_lines.append("4. ENTROPY ANALYSIS")
-        report_lines.append("="*80)
-        report_lines.append("")
-        
-        for name, label in [('LSTM_Parking', 'LSTM'), ('Default_Parking', 'Default')]:
-            if name in self.results:
-                ent_data = self.results[name]['policy_entropy']
-                report_lines.append(f"4.{1 if name == 'LSTM_Parking' else 2} {label} Network")
-                report_lines.append("-" * 40)
-                report_lines.append(f"   • Mean entropy: {ent_data['mean_entropy']:.4f}")
-                report_lines.append(f"   • Std entropy: {ent_data['std_entropy']:.4f}")
-                report_lines.append(f"   • Min entropy: {ent_data['min_entropy']:.4f}")
-                report_lines.append(f"   • Max entropy: {ent_data['max_entropy']:.4f}")
-                report_lines.append(f"   • Median entropy: {ent_data['median_entropy']:.4f}")
-                
-                # Interpretation
-                if ent_data['mean_entropy'] > np.log(self.results[name]['mdp'].numActions) * 0.7:
-                    interpretation = "High entropy - Policy is more exploratory/random"
-                elif ent_data['mean_entropy'] < np.log(self.results[name]['mdp'].numActions) * 0.3:
-                    interpretation = "Low entropy - Policy is more deterministic"
-                else:
-                    interpretation = "Moderate entropy - Balanced exploration/exploitation"
-                
-                report_lines.append(f"   • Interpretation: {interpretation}")
-                report_lines.append("")
-        
-        # 5. Learning Curves
-        report_lines.append("="*80)
-        report_lines.append("5. LEARNING CURVES")
-        report_lines.append("="*80)
-        report_lines.append("")
-        
-        if 'CNN_CIFAR10' in self.results:
-            cnn_data = self.results['CNN_CIFAR10']
-            report_lines.append("5.1 CNN on CIFAR-10")
-            report_lines.append("-" * 40)
-            report_lines.append(f"   • Initial test accuracy: {cnn_data['test_accuracies'][0]:.2f}%")
-            report_lines.append(f"   • Final test accuracy: {cnn_data['test_accuracies'][-1]:.2f}%")
-            report_lines.append(f"   • Improvement: {cnn_data['test_accuracies'][-1] - cnn_data['test_accuracies'][0]:.2f}%")
-            report_lines.append(f"   • Learning trend: {'Increasing' if cnn_data['test_accuracies'][-1] > cnn_data['test_accuracies'][0] else 'Stable/Decreasing'}")
-            report_lines.append("")
-        
-        for name, label in [('LSTM_Parking', 'LSTM'), ('Default_Parking', 'Default')]:
-            if name in self.results:
-                data = self.results[name]
-                rewards = data['rewards']
-                report_lines.append(f"5.{2 if name == 'LSTM_Parking' else 3} {label} on Parking MDP")
-                report_lines.append("-" * 40)
-                report_lines.append(f"   • Initial average reward: {rewards[0]:.2f}")
-                report_lines.append(f"   • Final average reward: {rewards[-1]:.2f}")
-                report_lines.append(f"   • Best average reward: {max(rewards):.2f}")
-                report_lines.append(f"   • Improvement: {rewards[-1] - rewards[0]:.2f}")
-                report_lines.append(f"   • Learning stability (std of last 10): {np.std(rewards[-10:]):.4f}")
-                report_lines.append("")
-        
-        # 6. Uniformness of Action Distribution
-        report_lines.append("="*80)
-        report_lines.append("6. UNIFORMNESS OF ACTION DISTRIBUTION")
-        report_lines.append("="*80)
-        report_lines.append("")
-        
-        if 'CNN_CIFAR10' in self.results:
-            cnn_data = self.results['CNN_CIFAR10']
-            class_dist = cnn_data['class_distribution']
-            total = cnn_data['total_samples']
-            expected = total / 10 if total > 0 else 0
-            
-            chi_sq = sum((count - expected)**2 / expected for count in class_dist.values()) if expected > 0 else 0
-            uniformity = 1 / (1 + chi_sq / 9) if chi_sq > 0 else 0
-            
-            report_lines.append("6.1 CNN on CIFAR-10 (Class Distribution)")
-            report_lines.append("-" * 40)
-            report_lines.append(f"   • Uniformity score: {uniformity:.4f} (1.0 = perfectly uniform)")
-            report_lines.append(f"   • Chi-square statistic: {chi_sq:.4f}")
-            report_lines.append(f"   • Expected uniform count per class: {expected:.1f}")
-            report_lines.append(f"   • Most predicted class: {max(class_dist.items(), key=lambda x: x[1])[0]}")
-            report_lines.append(f"   • Least predicted class: {min(class_dist.items(), key=lambda x: x[1])[0]}")
-            report_lines.append("")
-        
-        for name, label in [('LSTM_Parking', 'LSTM'), ('Default_Parking', 'Default')]:
-            if name in self.results:
-                action_dist = self.results[name]['action_distribution']
-                report_lines.append(f"6.{2 if name == 'LSTM_Parking' else 3} {label} on Parking MDP")
-                report_lines.append("-" * 40)
-                report_lines.append(f"   • Uniformity score: {action_dist['uniformity_score']:.4f} (1.0 = perfectly uniform)")
-                report_lines.append(f"   • Chi-square statistic: {action_dist['chi_square_stat']:.4f}")
-                report_lines.append(f"   • P-value: {action_dist['p_value']:.4f}")
-                report_lines.append(f"   • Distribution uniform: {'Yes' if action_dist['is_uniform'] else 'No'} (p > 0.05)")
-                report_lines.append("")
-                
-                # Action breakdown
-                for action, count in sorted(action_dist['action_counts'].items()):
-                    percentage = (count / action_dist['total_states']) * 100
-                    report_lines.append(f"     Action {action}: {count} states ({percentage:.1f}%)")
-                report_lines.append("")
-        
-        # Summary
-        report_lines.append("="*80)
-        report_lines.append("SUMMARY")
-        report_lines.append("="*80)
-        report_lines.append("")
-        
-        if 'CNN_CIFAR10' in self.results:
-            report_lines.append("• CNN successfully learned CIFAR-10 classification task")
-        if 'LSTM_Parking' in self.results:
-            report_lines.append(f"• LSTM achieved {self.results['LSTM_Parking']['final_reward']:.2f} average reward on Parking MDP")
-        if 'Default_Parking' in self.results:
-            report_lines.append(f"• Default NN achieved {self.results['Default_Parking']['final_reward']:.2f} average reward on Parking MDP")
-        
-        report_lines.append("")
-        report_lines.append("="*80)
-        
-        # Save report
-        report_text = "\n".join(report_lines)
-        with open('quantitative_analysis_report.txt', 'w') as f:
-            f.write(report_text)
-        
-        print(report_text)
-        print("\nReport saved to 'quantitative_analysis_report.txt'")
-        
-        return report_text
     
     def load_existing_results(self, filename='analysis_results.pkl'):
         """Load existing results from pickle file"""
@@ -1406,17 +1008,11 @@ class ComprehensiveNetworkAnalyzer:
                     if 'action_distribution' not in self.results[name]:
                         self.results[name]['action_distribution'] = self._calculate_action_distribution(agent, mdp)
                     
-                    if 'policy_entropy' not in self.results[name]:
-                        self.results[name]['policy_entropy'] = self._calculate_policy_entropy(agent, mdp)
-                    
                     if 'equivalence_classes' not in self.results[name]:
                         self.results[name]['equivalence_classes'] = self._analyze_equivalence_classes(agent, mdp, name)
         
         # Generate visualizations
         self.generate_visualizations()
-        
-        # Generate report
-        self.generate_quantitative_report()
         
         # Save results
         with open('analysis_results.pkl', 'wb') as f:
@@ -1456,7 +1052,6 @@ def main():
         
         # Generate analysis for what we have
         analyzer.generate_visualizations()
-        analyzer.generate_quantitative_report()
         
         # Save results
         import pickle

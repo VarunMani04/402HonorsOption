@@ -71,8 +71,8 @@ This will:
 - Train CNN on CIFAR-10 (20 epochs)
 - Train LSTM on Parking MDP (50 epochs)
 - Train Default NN on Parking MDP (50 epochs)
-- Generate visualizations (learning curves, entropy, equivalence classes, action distribution, qualitative analysis)
-- Generate quantitative analysis report (`quantitative_analysis_report.txt`)
+- Generate visualizations (learning curves, equivalence classes, action distribution, qualitative analysis)
+- Save results to `analysis_results.pkl` for later analysis
 
 **Note**: CNN training takes approximately 10-20 minutes depending on hardware.
 
@@ -94,9 +94,8 @@ analyzer.train_lstm_on_mdp(num_epochs=50, num_samples=30)
 # Train Default NN on Parking MDP
 analyzer.train_default_on_mdp(num_epochs=50, num_samples=30)
 
-# Generate visualizations and report
+# Generate visualizations
 analyzer.generate_visualizations()
-analyzer.generate_quantitative_report()
 ```
 
 ### Using Networks Directly (Plug-and-Play)
@@ -212,11 +211,10 @@ The analysis script generates comprehensive metrics for each network:
 
 1. **Learning Curves**: Performance over training epochs
 2. **Equivalence Classes**: Clustering of states with similar Q-values
-3. **Entropy**: Policy entropy (exploration vs. exploitation)
-4. **Action Distribution**: Uniformity of action selection
-5. **Qualitative Analysis**: Q-value variance and spread patterns
+3. **Action Distribution**: Uniformity of action selection
+4. **Qualitative Analysis**: Q-value variance and spread patterns
 
-All metrics are saved as visualizations and included in the quantitative report.
+All metrics are saved as visualizations and can be analyzed from the saved results.
 
 ## Outputs
 
@@ -225,25 +223,12 @@ Running the analysis script generates:
 - **Visualizations** (PNG files):
   - `learning_curves_analysis.png`
   - `equivalence_classes_analysis.png`
-  - `entropy_analysis.png`
   - `action_distribution_analysis.png`
   - `qualitative_analysis.png`
   - `comprehensive_network_analysis.png`
 
-- **Reports**:
-  - `quantitative_analysis_report.txt` - Detailed analysis report
-
 - **Data**:
-  - `analysis_results.pkl` - Saved results for faster re-analysis
-
-## Original Lab Files
-
-This project extends the original Lab 5 framework. Original lab files are preserved:
-
-- `MDP.py`, `ParkingDefs.py`, `ParkingLotFactory.py` - Core MDP infrastructure
-- `agent/` - Agent implementations (including original QLearningAgent, PolicyIterationAgent)
-- `tests*.py` - Original lab test scripts
-- `main.py` - Original entry point
+  - `analysis_results.pkl` - Saved results for faster re-analysis and manual report generation
 
 ## Notes
 
@@ -251,8 +236,5 @@ This project extends the original Lab 5 framework. Original lab files are preser
 - Training can be time-consuming (especially CNN). Results are cached in `analysis_results.pkl` to avoid retraining
 - The CNN requires CIFAR-10 dataset (~170MB), which downloads automatically on first run
 - MDP networks use experience replay buffer (size 10,000) for stable learning
-
-## License
-
-This project is part of DS402 Trends in Data Science coursework.
+- Results can be loaded from `analysis_results.pkl` to regenerate visualizations without retraining
 
